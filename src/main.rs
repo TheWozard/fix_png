@@ -28,13 +28,18 @@ fn main() {
                 let mut modified = false;
                 for (x, y, pixel) in img.pixels() {
                     // Update all background pixels to match nearest non-transparent pixel.
-                    if pixel == Rgba([255, 255, 255, 0]) {
-                        modified = true;
-                        if let Some(nearest_pixel) = find_nearby_non_transparent_pixel(&img, (x, y)) {
-                            buf.put_pixel(x, y, Rgba([nearest_pixel[0], nearest_pixel[1], nearest_pixel[2], 0]));
+                    if pixel[3] == 0 {
+                        if let Some(nearest_pixel) =
+                            interpolate_nearby_non_transparent_pixels(&img, (x, y))
+                        {
+                            modified = true;
+                            buf.put_pixel(
+                                x,
+                                y,
+                                Rgba([nearest_pixel[0], nearest_pixel[1], nearest_pixel[2], 0]),
+                            );
                         } else {
-                            // Mark as black to indicate it has been processed so we can skip in the future.
-                            buf.put_pixel(x, y, Rgba([0, 0, 0, 0]));
+                            buf.put_pixel(x, y, pixel);
                         }
                     } else {
                         buf.put_pixel(x, y, pixel);
@@ -51,8 +56,12 @@ fn main() {
     }
 }
 
-fn find_nearby_non_transparent_pixel(img: &DynamicImage, point: (u32, u32)) -> Option<Rgba<u8>> {
-    // First Check Immediate Neighbors
+fn interpolate_nearby_non_transparent_pixels(
+    img: &DynamicImage,
+    point: (u32, u32),
+) -> Option<Rgba<u8>> {
+    // Collect non transparent samples from the 3x3 grid around the point
+    let mut samples = Vec::with_capacity(9);
     for y in -1..=1 {
         for x in -1..=1 {
             let new_x = (point.0 as i32 + x) as u32;
@@ -61,11 +70,29 @@ fn find_nearby_non_transparent_pixel(img: &DynamicImage, point: (u32, u32)) -> O
             if new_x < img.width() && new_y < img.height() {
                 let pixel = img.get_pixel(new_x as u32, new_y as u32);
                 if pixel[3] != 0 {
-                    return Some(pixel);
+                    samples.push(pixel);
                 }
             }
         }
     }
 
-    None
+    if samples.is_empty() {
+        // If no non-transparent pixels were found, return None
+        None
+    } else {
+        // Return the average of the non-transparent pixels
+        let mut sum = [0u32; 3];
+        let count = samples.len() as u32;
+        for pixel in samples {
+            for channel in 0..3 {
+                sum[channel] += pixel[channel] as u32;
+            }
+        }
+        Some(Rgba([
+            (sum[0] / count) as u8,
+            (sum[1] / count) as u8,
+            (sum[2] / count) as u8,
+            0,
+        ]))
+    }
 }
