@@ -2,8 +2,8 @@ use clap::Parser;
 use glob::glob;
 use image::{DynamicImage, GenericImageView, ImageBuffer, Rgba};
 
-/// Simple program to update PNG images by replacing transparent pixels with the color of the nearest non-transparent pixel.
-/// This helps to ensure that images with transparent backgrounds are interpreted correctly.
+/// Simple program to update PNG images by replacing transparent pixels with the linear interpolated color of the nearest non-transparent pixel.
+/// Does not modify the alpha channel of the pixels, only the RGB values. This helps to ensure that images with transparent backgrounds are interpreted correctly.
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
